@@ -19,3 +19,5 @@ staticfiles/
 .env
 .vscode/
 .idea/
+# Application Generated Logs
+student_records.txt

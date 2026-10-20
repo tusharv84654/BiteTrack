@@ -14,51 +14,90 @@
     </div>
 
     <div class="right">
-        <form method="POST">
+        <form method="POST" id="loginForm" novalidate>
             {% csrf_token %}
             <h2>Sign In</h2>
             <p class="sub">Enter your details to proceed to the order menu</p>
 
             {% if error %}
-                <div class="error" style="background: #fee2e2; color: #b91c1c; padding: 10px; border-radius: 6px; font-size: 0.85rem; text-align: center; margin-bottom: 16px;">
+                <div class="error" style="background: #fee2e2; color: #b91c1c; padding: 10px; border-radius: 6px; font-size: 0.85rem; text-align: center; margin-bottom: 16px; border: 1px solid #f87171;">
                     {{ error }}
                 </div>
             {% endif %}
 
             <div class="form-row">
                 <label for="username">Username :</label>
-                <input type="text" id="username" name="username" placeholder="Username" required autofocus>
+                <input 
+                    type="text" 
+                    id="username" 
+                    name="username" 
+                    placeholder="Username" 
+                    value="{{ form_data.username|default:'' }}" 
+                    required 
+                    autofocus
+                >
             </div>
 
             <div class="form-row">
                 <label for="password">Password :</label>
-                <input type="password" id="password" name="password" placeholder="Password" required>
+                <input 
+                    type="password" 
+                    id="password" 
+                    name="password" 
+                    placeholder="Password" 
+                    required
+                >
             </div>
 
             <div class="form-row">
-                <label for="enrollment">Enrollment No :</label>
-                <input type="text" id="enrollment" name="enrollment" placeholder="e.g. 1240211051063">
+                <label for="enrollment">Enrollment No (14 digits) :</label>
+                <input 
+                    type="text" 
+                    id="enrollment" 
+                    name="enrollment" 
+                    placeholder="e.g. 1240211051063" 
+                    pattern="[0-9]{14}" 
+                    maxlength="14" 
+                    value="{{ form_data.enrollment|default:'' }}" 
+                    title="Enrollment number must be exactly 14 digits" 
+                    required
+                >
             </div>
 
             <div class="form-row">
-                <label for="mobile">Mobile No :</label>
-                <input type="tel" id="mobile" name="mobile" placeholder="10-digit mobile number">
+                <label for="mobile">Mobile No (10 digits) :</label>
+                <input 
+                    type="tel" 
+                    id="mobile" 
+                    name="mobile" 
+                    placeholder="10-digit mobile number" 
+                    pattern="[0-9]{10}" 
+                    maxlength="10" 
+                    value="{{ form_data.mobile|default:'' }}" 
+                    title="Mobile number must be exactly 10 digits" 
+                    required
+                >
             </div>
 
             <div class="form-row">
                 <label for="department">Department :</label>
-                <select id="department" name="department">
-                    <option value="" disabled selected>Select your department</option>
-                    <option value="CSE-IoT">Computer Science & Engg (IoT)</option>
-                    <option value="CSE">Computer Science & Engg</option>
-                    <option value="IT">Information Technology</option>
-                    <option value="EC">Electronics & Communication</option>
-                    <option value="ME">Mechanical Engineering</option>
+                <select id="department" name="department" required>
+                    <option value="" disabled {% if not form_data.department %}selected{% endif %}>Select your department</option>
+                    <option value="CSE-IoT" {% if form_data.department == 'CSE-IoT' %}selected{% endif %}>Computer Science & Engg (IoT)</option>
+                    <option value="CSE" {% if form_data.department == 'CSE' %}selected{% endif %}>Computer Science & Engg</option>
+                    <option value="IT" {% if form_data.department == 'IT' %}selected{% endif %}>Information Technology</option>
+                    <option value="EC" {% if form_data.department == 'EC' %}selected{% endif %}>Electronics & Communication</option>
+                    <option value="ME" {% if form_data.department == 'ME' %}selected{% endif %}>Mechanical Engineering</option>
                 </select>
             </div>
 
             <div class="remember-row">
-                <input type="checkbox" id="remember_me" name="remember_me">
+                <input 
+                    type="checkbox" 
+                    id="remember_me" 
+                    name="remember_me" 
+                    {% if form_data.remember_me %}checked{% endif %}
+                >
                 <label for="remember_me">Remember Me</label>
             </div>
 
@@ -66,5 +105,18 @@
         </form>
     </div>
 
+    <script>
+        // Restrict Enrollment No to digits only and max 14 characters
+        const enrollmentInput = document.getElementById('enrollment');
+        enrollmentInput.addEventListener('input', function () {
+            this.value = this.value.replace(/[^0-9]/g, '').slice(0, 14);
+        });
+
+        // Restrict Mobile No to digits only and max 10 characters
+        const mobileInput = document.getElementById('mobile');
+        mobileInput.addEventListener('input', function () {
+            this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10);
+        });
+    </script>
 </body>
 </html>

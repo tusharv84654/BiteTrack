@@ -1,4 +1,8 @@
 import json
+import os
+import re
+from datetime import datetime
+from django.conf import settings
 from django.db import transaction
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
@@ -14,8 +18,44 @@ from rest_framework.response import Response
 from .models import MenuItem, Order, OrderItem
 from .serializers import MenuItemSerializer, OrderDetailSerializer
 
+# File path for student registration log file
+STUDENT_RECORDS_FILE = os.path.join(settings.BASE_DIR, 'student_records.txt')
 
-# 1. Catalog Endpoint: Anyone can view active menu items
+
+# --- File Management & Regex Helper Functions ---
+
+def validate_student_input(username, enrollment, mobile, department):
+    """Uses Regular Expressions to strictly validate user inputs."""
+    # 1. Username Regex: 3 to 20 alphanumeric characters or underscores
+    if not re.fullmatch(r'^[a-zA-Z0-9_]{3,20}$', username):
+        return False, "Username must be 3-20 characters (letters, numbers, underscores only)."
+
+    # 2. Enrollment Regex: Exactly 14 digits
+    if not re.fullmatch(r'^[0-9]{14}$', enrollment):
+        return False, "Enrollment number must be exactly 14 numeric digits."
+
+    # 3. Mobile Regex: 10 digits starting with 6, 7, 8, or 9
+    if not re.fullmatch(r'^[6-9][0-9]{9}$', mobile):
+        return False, "Mobile number must be a valid 10-digit number."
+
+    # 4. Department dropdown validation
+    valid_departments = ['CSE-IoT', 'CSE', 'IT', 'EC', 'ME']
+    if department not in valid_departments:
+        return False, "Please select a valid department from the list."
+
+    return True, ""
+
+
+def save_student_to_file(username, enrollment, mobile, department):
+    """File Management: Appends student credentials and academic data to a text file."""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    record_line = f"{timestamp} | Username: {username} | Enrollment: {enrollment} | Mobile: {mobile} | Dept: {department}\n"
+    
+    with open(STUDENT_RECORDS_FILE, 'a+', encoding='utf-8') as f:
+        f.write(record_line)
+
+
+# --- 1. Catalog Endpoint: Anyone can view active menu items ---
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def menu_list(request):
@@ -24,7 +64,7 @@ def menu_list(request):
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-# 2. Order Placement (API): Atomic checkout with stock deduction
+# --- 2. Order Placement (API): Atomic checkout with stock deduction ---
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def place_order(request):
@@ -46,7 +86,6 @@ def place_order(request):
                 if menu_item.stock < qty:
                     raise ValueError(f"Insufficient stock for {menu_item.name}.")
 
-                # Deduct stock and record line item
                 menu_item.stock -= qty
                 menu_item.save()
 
@@ -70,7 +109,7 @@ def place_order(request):
         return Response({'error': str(err)}, status=status.HTTP_400_BAD_REQUEST)
 
 
-# 3. Order History: Logged-in student views their own orders
+# --- 3. Order History: Logged-in student views their own orders ---
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def my_orders(request):
@@ -79,12 +118,9 @@ def my_orders(request):
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-# --- Template Views ---
-
-# 4. Student Menu Catalog Page
+# --- 4. Student Menu Catalog Page ---
 @login_required(login_url='login')
 def home_view(request):
-    # Staff / admin are redirected to the kitchen dashboard
     if request.user.is_staff or request.user.is_superuser:
         return redirect('kitchen')
 
@@ -95,7 +131,7 @@ def home_view(request):
     })
 
 
-# 5. Dedicated Kitchen / Admin Orders 3-Column Kanban View
+# --- 5. Dedicated Kitchen 3-Column Kanban View ---
 @login_required(login_url='login')
 def kitchen_view(request):
     if not (request.user.is_staff or request.user.is_superuser):
@@ -107,7 +143,6 @@ def kitchen_view(request):
     preparing_orders = []
     ready_orders = []
 
-    # Safe categorization: No order will ever be omitted
     for order in all_orders:
         st = (order.status or '').strip().lower()
         if st == 'preparing':
@@ -115,7 +150,6 @@ def kitchen_view(request):
         elif st in ['ready', 'completed']:
             ready_orders.append(order)
         else:
-            # Captures 'pending', empty string, None, or any unhandled status
             pending_orders.append(order)
 
     return render(request, 'orders_dashboard.html', {
@@ -125,7 +159,7 @@ def kitchen_view(request):
     })
 
 
-# 6. Login View (Auto-registers new students or authenticates existing users)
+# --- 6. Login View (File Management & Regex-Driven Authentication) ---
 def user_login(request):
     if request.user.is_authenticated:
         if request.user.is_staff or request.user.is_superuser:
@@ -133,44 +167,69 @@ def user_login(request):
         return redirect('home')
 
     error = None
+    form_data = {}
+
     if request.method == 'POST':
         u = request.POST.get('username', '').strip()
         p = request.POST.get('password', '').strip()
+        enrollment = request.POST.get('enrollment', '').strip()
+        mobile = request.POST.get('mobile', '').strip()
+        department = request.POST.get('department', '').strip()
         remember_me = request.POST.get('remember_me')
 
+        form_data = {
+            'username': u,
+            'enrollment': enrollment,
+            'mobile': mobile,
+            'department': department,
+            'remember_me': remember_me
+        }
+
+        # Basic empty check
         if not u or not p:
             error = "Username and password are required."
-            return render(request, 'login.html', {'error': error})
+            return render(request, 'login.html', {'error': error, 'form_data': form_data})
 
-        # Check existing vs new student
-        if User.objects.filter(username=u).exists():
+        existing_user = User.objects.filter(username=u).first()
+        is_staff_or_admin = existing_user and (existing_user.is_staff or existing_user.is_superuser)
+
+        # Non-staff student validation via Regular Expressions
+        if not is_staff_or_admin:
+            is_valid, validation_msg = validate_student_input(u, enrollment, mobile, department)
+            if not is_valid:
+                return render(request, 'login.html', {'error': validation_msg, 'form_data': form_data})
+
+        # Authentication or creation
+        if existing_user:
             user = authenticate(request, username=u, password=p)
             if user is None:
                 error = "Incorrect password for existing user."
-                return render(request, 'login.html', {'error': error})
+                return render(request, 'login.html', {'error': error, 'form_data': form_data})
         else:
+            # Auto-register new student and log to file management system
             user = User.objects.create_user(username=u, password=p)
+            save_student_to_file(u, enrollment, mobile, department)
 
         login(request, user)
         if remember_me:
-            request.session.set_expiry(604800)  # 7 days
+            request.session.set_expiry(604800)
         else:
-            request.session.set_expiry(0)       # Closes on browser exit
+            request.session.set_expiry(0)
 
         if user.is_staff or user.is_superuser:
             return redirect('kitchen')
         return redirect('home')
 
-    return render(request, 'login.html', {'error': error})
+    return render(request, 'login.html', {'error': error, 'form_data': form_data})
 
 
-# 7. Logout View
+# --- 7. Logout View ---
 def user_logout(request):
     logout(request)
     return redirect('login')
 
 
-# 8. Web Checkout Handler for POS Cart
+# --- 8. Web Checkout Handler for POS Cart ---
 @login_required(login_url='login')
 def submit_order_web(request):
     if request.method == 'POST':
@@ -198,11 +257,9 @@ def submit_order_web(request):
                             'message': f'Not enough stock for {menu_item.name}'
                         }, status=400)
 
-                    # Deduct inventory count
                     menu_item.stock -= qty
                     menu_item.save()
 
-                    # Create order line item
                     OrderItem.objects.create(
                         order=order,
                         item=menu_item,
@@ -211,7 +268,6 @@ def submit_order_web(request):
                     )
                     total += price * qty
 
-                # Add 5% campus tax
                 tax = total * 0.05
                 order.total_amount = round(total + tax, 2)
                 order.save()
@@ -224,7 +280,7 @@ def submit_order_web(request):
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
 
-# 9. Status Progression Endpoint for Kanban Board
+# --- 9. Status Progression Endpoint for Kanban Board ---
 @login_required(login_url='login')
 def update_order_status(request, order_id):
     if not (request.user.is_staff or request.user.is_superuser):
