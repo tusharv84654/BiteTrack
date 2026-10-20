@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BiteTrack - Login</title>
+    <link rel="stylesheet" href="/static/login.css">
+</head>
+<body>
+
+    <div class="left">
+        <h1>BiteTrack</h1>
+        <p>A Django-Based Canteen Order Record Application with Experimental JSON-Based REST API Evaluation</p>
+    </div>
+
+    <div class="right">
+        <form method="POST">
+            {% csrf_token %}
+            <h2>Sign In</h2>
+            <p class="sub">Enter your details to proceed to the order menu</p>
+
+            {% if error %}
+                <div class="error" style="background: #fee2e2; color: #b91c1c; padding: 10px; border-radius: 6px; font-size: 0.85rem; text-align: center; margin-bottom: 16px;">
+                    {{ error }}
+                </div>
+            {% endif %}
+
+            <div class="form-row">
+                <label for="username">Username :</label>
+                <input type="text" id="username" name="username" placeholder="Username" required autofocus>
+            </div>
+
+            <div class="form-row">
+                <label for="password">Password :</label>
+                <input type="password" id="password" name="password" placeholder="Password" required>
+            </div>
+
+            <div class="form-row">
+                <label for="enrollment">Enrollment No :</label>
+                <input type="text" id="enrollment" name="enrollment" placeholder="e.g. 1240211051063">
+            </div>
+
+            <div class="form-row">
+                <label for="mobile">Mobile No :</label>
+                <input type="tel" id="mobile" name="mobile" placeholder="10-digit mobile number">
+            </div>
+
+            <div class="form-row">
+                <label for="department">Department :</label>
+                <select id="department" name="department">
+                    <option value="" disabled selected>Select your department</option>
+                    <option value="CSE-IoT">Computer Science & Engg (IoT)</option>
+                    <option value="CSE">Computer Science & Engg</option>
+                    <option value="IT">Information Technology</option>
+                    <option value="EC">Electronics & Communication</option>
+                    <option value="ME">Mechanical Engineering</option>
+                </select>
+            </div>
+
+            <div class="remember-row">
+                <input type="checkbox" id="remember_me" name="remember_me">
+                <label for="remember_me">Remember Me</label>
+            </div>
+
+            <button type="submit">Login & View Menu</button>
+        </form>
+    </div>
+
+</body>
+</html>

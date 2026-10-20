@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BiteTrack - Canteen POS Menu</title>
+    <link rel="stylesheet" href="/static/index.css">
+</head>
+<body>
+
+<div class="pos-app">
+    <!-- Top Header -->
+    <header class="pos-header">
+        <div class="brand">
+            <span class="brand-badge">BiteTrack</span>
+            <span class="brand-name">Campus Canteen Order</span>
+        </div>
+        <div class="user-info">
+            <span>{{ user.username|default:"Student" }}</span>
+            <a href="/logout/" class="logout-link">Logout</a>
+        </div>
+    </header>
+
+    <!-- Main Section -->
+    <main class="pos-main">
+        <!-- Left: Food Catalog -->
+        <section class="menu-section">
+            <input type="text" id="searchInput" class="search-bar" placeholder="Search menu items..." onkeyup="filterMenu()">
+
+            <div class="category-pills">
+                <button class="pill active" onclick="setCategory('All', this)">All</button>
+                <button class="pill" onclick="setCategory('Meals', this)">Meals</button>
+                <button class="pill" onclick="setCategory('Snacks', this)">Snacks</button>
+                <button class="pill" onclick="setCategory('Drinks', this)">Drinks</button>
+                <button class="pill" onclick="setCategory('Bakery', this)">Bakery</button>
+            </div>
+
+            <div class="menu-grid" id="menuGrid">
+                {% for item in items %}
+                <div class="food-card" data-category="{{ item.category|default:'Meals' }}" data-name="{{ item.name|lower }}">
+                    <div>
+                        {% if item.is_available and item.stock > 0 %}
+                            <span class="badge-status available">Available ({{ item.stock }})</span>
+                        {% else %}
+                            <span class="badge-status unavailable">Out of Stock</span>
+                        {% endif %}
+                        <div class="food-title">{{ item.name }}</div>
+                        <div class="food-desc">{{ item.description|default:"Freshly prepared in campus kitchen." }}</div>
+                    </div>
+                    <div class="card-bottom">
+                        <span class="food-price">₹{{ item.price }}</span>
+                        {% if item.is_available and item.stock > 0 %}
+                            <button class="btn-add" onclick="openAddonModal('{{ item.id }}', '{{ item.name|escapejs }}', {{ item.price }}, '{{ item.category|default:'Meals' }}')">Add to Cart</button>
+                        {% else %}
+                            <button class="btn-add" disabled>Unavailable</button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% empty %}
+                <p style="color: #64748b; font-size: 0.95rem;">No menu items found. Please add items in the admin panel.</p>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- Right: Order Details Tray -->
+        <aside class="tray-section">
+            <div>
+                <div class="tray-header">
+                    <span class="tray-title">Order Details</span>
+                    <button class="btn-reset" onclick="resetOrder()">Reset Order</button>
+                </div>
+                <div class="tray-items" id="trayItems">
+                    <div class="empty-tray" id="emptyMessage">No items in your cart. Select food from the left.</div>
+                </div>
+            </div>
+
+            <!-- Total Calculations -->
+            <div class="tray-footer">
+                <div class="calc-row">
+                    <span>Subtotal</span>
+                    <span id="subTotal">₹0.00</span>
+                </div>
+                <div class="calc-row">
+                    <span>Campus Tax (5%)</span>
+                    <span id="taxTotal">₹0.00</span>
+                </div>
+                <div class="calc-row total">
+                    <span>Total Payment</span>
+                    <span id="finalTotal">₹0.00</span>
+                </div>
+                <button class="btn-checkout" id="checkoutBtn" disabled onclick="submitOrder()">Confirm & Send to Kitchen</button>
+            </div>
+        </aside>
+    </main>
+</div>
+
+<!-- Add-on Modal -->
+<div class="modal-overlay" id="addonModal" style="display: none;">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 id="modalItemTitle">Customize Item</h3>
+            <button class="close-btn" onclick="closeAddonModal()">&times;</button>
+        </div>
+        <div style="font-size: 0.9rem; color: #64748b; margin-bottom: 12px;" id="modalItemBasePrice">Base Price: ₹0</div>
+
+        <!-- Dynamic Addons Injected by Category -->
+        <div class="addon-list" id="addonOptionsContainer"></div>
+
+        <button class="btn-checkout" style="margin-top: 16px;" onclick="confirmAddToCart()">Add to Order</button>
+    </div>
+</div>
+
+<script>
+    let cart = [];
+    let currentItem = null;
+
+    // Define category-appropriate addons
+    const categoryAddons = {
+        'Drinks': [
+            { label: 'Regular (Standard)', price: 0, checked: true },
+            { label: 'Extra Ice (+₹5)', price: 5, checked: false },
+            { label: 'Large Size (+₹15)', price: 15, checked: false }
+        ],
+        'Snacks': [
+            { label: 'Regular (No Add-ons)', price: 0, checked: true },
+            { label: 'Extra Dip / Chutney (+₹10)', price: 10, checked: false },
+            { label: 'Grated Cheese (+₹20)', price: 20, checked: false }
+        ],
+        'Meals': [
+            { label: 'Regular Portion', price: 0, checked: true },
+            { label: 'Extra Roti / Portion (+₹15)', price: 15, checked: false },
+            { label: 'Extra Curd / Salad (+₹20)', price: 20, checked: false }
+        ],
+        'Bakery': [
+            { label: 'Regular Slice (No Add-ons)', price: 0, checked: true },
+            { label: 'Extra Whipped Cream (+₹15)', price: 15, checked: false },
+            { label: 'Chocolate Drizzle (+₹20)', price: 20, checked: false }
+        ]
+    };
+
+    function openAddonModal(id, name, price, category) {
+        currentItem = { id, name, price, category };
+        document.getElementById('modalItemTitle').innerText = name;
+        document.getElementById('modalItemBasePrice').innerText = 'Base Price: ₹' + price;
+
+        const container = document.getElementById('addonOptionsContainer');
+        const options = categoryAddons[category] || categoryAddons['Snacks'];
+
+        container.innerHTML = options.map((opt, i) => `
+            <label class="addon-label">
+                <span>${opt.label}</span>
+                <input type="radio" name="addon" value="${opt.price}" ${opt.checked ? 'checked' : ''} data-label="${opt.label}">
+            </label>
+        `).join('');
+
+        document.getElementById('addonModal').style.display = 'flex';
+    }
+
+    function closeAddonModal() {
+        document.getElementById('addonModal').style.display = 'none';
+        currentItem = null;
+    }
+
+    function confirmAddToCart() {
+        const selectedRadio = document.querySelector('input[name="addon"]:checked');
+        const addonVal = parseFloat(selectedRadio.value);
+        const addonLabel = selectedRadio.getAttribute('data-label');
+
+        const itemPrice = currentItem.price + addonVal;
+        const itemName = addonVal > 0 ? `${currentItem.name} (${addonLabel.split('(')[0].trim()})` : currentItem.name;
+
+        const existing = cart.find(x => x.name === itemName);
+        if (existing) {
+            existing.qty += 1;
+        } else {
+            cart.push({ id: currentItem.id, name: itemName, price: itemPrice, qty: 1 });
+        }
+        closeAddonModal();
+        renderCart();
+    }
+
+    function updateQty(index, delta) {
+        cart[index].qty += delta;
+        if (cart[index].qty <= 0) {
+            cart.splice(index, 1);
+        }
+        renderCart();
+    }
+
+    function resetOrder() {
+        cart = [];
+        renderCart();
+    }
+
+    function renderCart() {
+        const tray = document.getElementById('trayItems');
+        const checkoutBtn = document.getElementById('checkoutBtn');
+
+        if (cart.length === 0) {
+            tray.innerHTML = '<div class="empty-tray">No items in your cart. Select food from the left.</div>';
+            document.getElementById('subTotal').innerText = '₹0.00';
+            document.getElementById('taxTotal').innerText = '₹0.00';
+            document.getElementById('finalTotal').innerText = '₹0.00';
+            checkoutBtn.disabled = true;
+            return;
+        }
+
+        tray.innerHTML = '';
+        let subtotal = 0;
+
+        cart.forEach((item, idx) => {
+            subtotal += item.price * item.qty;
+            const div = document.createElement('div');
+            div.className = 'tray-item';
+            div.innerHTML = `
+                <div>
+                    <div class="tray-item-title">${item.name}</div>
+                    <div class="tray-item-sub">₹${item.price} each</div>
+                </div>
+                <div class="qty-control">
+                    <button class="qty-btn" onclick="updateQty(${idx}, -1)">-</button>
+                    <span class="qty-val">${item.qty}</span>
+                    <button class="qty-btn" onclick="updateQty(${idx}, 1)">+</button>
+                </div>
+            `;
+            tray.appendChild(div);
+        });
+
+        const tax = subtotal * 0.05;
+        const total = subtotal + tax;
+
+        document.getElementById('subTotal').innerText = `₹${subtotal.toFixed(2)}`;
+        document.getElementById('taxTotal').innerText = `₹${tax.toFixed(2)}`;
+        document.getElementById('finalTotal').innerText = `₹${total.toFixed(2)}`;
+        checkoutBtn.disabled = false;
+    }
+
+    function filterMenu() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        document.querySelectorAll('.food-card').forEach(card => {
+            const name = card.getAttribute('data-name');
+            card.style.display = name.includes(query) ? 'flex' : 'none';
+        });
+    }
+
+    function setCategory(cat, btn) {
+        document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+
+        document.querySelectorAll('.food-card').forEach(card => {
+            if (cat === 'All' || card.getAttribute('data-category') === cat) {
+                card.style.display = 'flex';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    }
+
+    function submitOrder() {
+        if (cart.length === 0) return;
+
+        const checkoutBtn = document.getElementById('checkoutBtn');
+        checkoutBtn.disabled = true;
+        checkoutBtn.innerText = "Sending to Kitchen...";
+
+        fetch('/submit-order/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ cart: cart })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert(`Order #${data.order_id} placed successfully and sent to the kitchen!`);
+                resetOrder();
+                location.reload();
+            } else {
+                alert(`Error: ${data.message}`);
+                checkoutBtn.disabled = false;
+                checkoutBtn.innerText = "Confirm & Send to Kitchen";
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("Failed to submit order. Check server connection.");
+            checkoutBtn.disabled = false;
+            checkoutBtn.innerText = "Confirm & Send to Kitchen";
+        });
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+
+</body>
+</html>

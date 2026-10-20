@@ -1,0 +1,196 @@
+.kitchen-wrapper {
+    width: 100vw;
+    height: 100vh;
+    background: #f8fafc;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.kitchen-content {
+    flex: 1;
+    padding: 16px 24px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+}
+
+.title-row h2 {
+    font-size: 1.25rem;
+    color: #0f172a;
+    font-weight: 700;
+}
+
+/* 3-Column Kanban Board */
+.kanban-board {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    overflow: hidden;
+}
+
+.kanban-col {
+    background: #f1f5f9;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.col-header {
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #e2e8f0;
+    background: #ffffff;
+}
+
+.col-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.col-badge {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 700;
+}
+
+.badge-pending-col { background: #fee2e2; color: #b91c1c; }
+.badge-prep-col { background: #fef3c7; color: #b45309; }
+.badge-ready-col { background: #dcfce7; color: #15803d; }
+
+.cards-stream {
+    flex: 1;
+    padding: 14px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+/* Individual Card */
+.order-card {
+    background: #ffffff;
+    border-radius: 10px;
+    border: 1px solid #cbd5e1;
+    padding: 14px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.order-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 8px;
+}
+
+.badge-id {
+    background: #2563eb;
+    color: #ffffff;
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 6px;
+}
+
+.order-time {
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+.customer-info {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #0f172a;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.badge-paid {
+    background: #dcfce7;
+    color: #15803d;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.order-items-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    border-top: 1px dashed #f1f5f9;
+    padding-top: 6px;
+}
+
+.order-items-list li {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.82rem;
+    padding: 3px 0;
+    color: #334155;
+}
+
+.order-card-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid #f1f5f9;
+    padding-top: 8px;
+}
+
+.total-price {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.btn-action {
+    width: 100%;
+    padding: 8px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-prep {
+    background: #f59e0b;
+    color: #ffffff;
+}
+.btn-prep:hover { background: #d97706; }
+
+.btn-ready {
+    background: #16a34a;
+    color: #ffffff;
+}
+.btn-ready:hover { background: #15803d; }
+
+.empty-col {
+    text-align: center;
+    color: #94a3b8;
+    font-size: 0.85rem;
+    margin-top: 30px;
+}

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BiteTrack - Kitchen Live Kanban</title>
+    <link rel="stylesheet" href="/static/index.css">
+    <link rel="stylesheet" href="/static/orders_dashboard.css">
+</head>
+<body>
+
+<div class="kitchen-wrapper">
+    <header class="pos-header">
+        <div class="brand">
+            <span class="brand-badge">BiteTrack</span>
+            <span class="brand-name">Kitchen Kanban Board</span>
+        </div>
+        <div class="user-info">
+            <span>Staff: <strong>{{ request.user.username }}</strong></span>
+            <a href="/logout/" class="logout-link">Logout</a>
+        </div>
+    </header>
+
+    <main class="kitchen-content">
+        <div class="title-row">
+            <h2>Active Kitchen Orders</h2>
+            <button class="pill active" onclick="location.reload()">Refresh Board</button>
+        </div>
+
+        <div class="kanban-board">
+            <!-- 1. Incoming / Received Column -->
+            <div class="kanban-col">
+                <div class="col-header">
+                    <span class="col-title">📥 Incoming Orders</span>
+                    <span class="col-badge badge-pending-col">{{ pending_orders|length }}</span>
+                </div>
+                <div class="cards-stream">
+                    {% for order in pending_orders %}
+                    <div class="order-card" id="card-{{ order.id }}">
+                        <div class="order-card-top">
+                            <span class="badge-id">#{{ order.id }}</span>
+                            <span class="order-time">{{ order.created_at|date:"h:i A" }}</span>
+                        </div>
+                        <div class="customer-info">
+                            <span>Student: {{ order.user.username }}</span>
+                            <span class="badge-paid">✓ PAID</span>
+                        </div>
+                        <ul class="order-items-list">
+                            {% for line in order.items.all %}
+                            <li>
+                                <span>{{ line.item.name }} × {{ line.quantity }}</span>
+                                <span>₹{{ line.unit_price }}</span>
+                            </li>
+                            {% empty %}
+                            <li style="color:#94a3b8;">No line items</li>
+                            {% endfor %}
+                        </ul>
+                        <div class="order-card-bottom">
+                            <span style="font-size: 0.75rem; color: #64748b;">Total</span>
+                            <span class="total-price">₹{{ order.total_amount }}</span>
+                        </div>
+                        <button class="btn-action btn-prep" onclick="moveStatus({{ order.id }}, 'Preparing')">
+                            ▶ Start Preparing
+                        </button>
+                    </div>
+                    {% empty %}
+                    <div class="empty-col">No incoming tickets</div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- 2. In Preparation Column -->
+            <div class="kanban-col">
+                <div class="col-header">
+                    <span class="col-title">🍳 Preparing</span>
+                    <span class="col-badge badge-prep-col">{{ preparing_orders|length }}</span>
+                </div>
+                <div class="cards-stream">
+                    {% for order in preparing_orders %}
+                    <div class="order-card" id="card-{{ order.id }}">
+                        <div class="order-card-top">
+                            <span class="badge-id" style="background: #f59e0b;">#{{ order.id }}</span>
+                            <span class="order-time">{{ order.created_at|date:"h:i A" }}</span>
+                        </div>
+                        <div class="customer-info">
+                            <span>Student: {{ order.user.username }}</span>
+                            <span class="badge-paid">✓ PAID</span>
+                        </div>
+                        <ul class="order-items-list">
+                            {% for line in order.items.all %}
+                            <li>
+                                <span>{{ line.item.name }} × {{ line.quantity }}</span>
+                                <span>₹{{ line.unit_price }}</span>
+                            </li>
+                            {% empty %}
+                            <li style="color:#94a3b8;">No line items</li>
+                            {% endfor %}
+                        </ul>
+                        <div class="order-card-bottom">
+                            <span style="font-size: 0.75rem; color: #64748b;">Total</span>
+                            <span class="total-price">₹{{ order.total_amount }}</span>
+                        </div>
+                        <button class="btn-action btn-ready" onclick="moveStatus({{ order.id }}, 'Ready')">
+                            ✓ Mark as Ready
+                        </button>
+                    </div>
+                    {% empty %}
+                    <div class="empty-col">No orders cooking</div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- 3. Ready / Completed Column -->
+            <div class="kanban-col">
+                <div class="col-header">
+                    <span class="col-title">✅ Ready for Pickup</span>
+                    <span class="col-badge badge-ready-col">{{ ready_orders|length }}</span>
+                </div>
+                <div class="cards-stream">
+                    {% for order in ready_orders %}
+                    <div class="order-card" id="card-{{ order.id }}">
+                        <div class="order-card-top">
+                            <span class="badge-id" style="background: #16a34a;">#{{ order.id }}</span>
+                            <span class="order-time">{{ order.created_at|date:"h:i A" }}</span>
+                        </div>
+                        <div class="customer-info">
+                            <span>Student: {{ order.user.username }}</span>
+                            <span class="badge-paid">✓ PAID</span>
+                        </div>
+                        <ul class="order-items-list">
+                            {% for line in order.items.all %}
+                            <li>
+                                <span>{{ line.item.name }} × {{ line.quantity }}</span>
+                                <span>₹{{ line.unit_price }}</span>
+                            </li>
+                            {% empty %}
+                            <li style="color:#94a3b8;">No line items</li>
+                            {% endfor %}
+                        </ul>
+                        <div class="order-card-bottom">
+                            <span style="font-size: 0.75rem; color: #64748b;">Total</span>
+                            <span class="total-price">₹{{ order.total_amount }}</span>
+                        </div>
+                        <button class="btn-action" style="background: #e2e8f0; color: #475569;" disabled>
+                            Ready for Student Pickup
+                        </button>
+                    </div>
+                    {% empty %}
+                    <div class="empty-col">No ready orders</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+function moveStatus(orderId, targetStatus) {
+    fetch(`/kitchen/update-status/${orderId}/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({ status: targetStatus })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            location.reload();
+        } else {
+            alert('Error updating status: ' + data.message);
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('Server communication failure.');
+    });
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+
+</body>
+</html>
